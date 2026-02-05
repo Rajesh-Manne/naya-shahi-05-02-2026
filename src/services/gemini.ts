@@ -1,60 +1,27 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-type GeminiResult = {
-  summary: string;
-  steps: string[];
-};
-
-const FALLBACK: GeminiResult = {
-  summary:
-    "We are here to help you navigate this difficult situation. Your safety and rights are protected by law.",
-  steps: [
-    "Preserve all evidence immediately (screenshots, bank records, messages).",
-    "If local authorities or the company refuse help, use the official central portal to file a complaint.",
-    "Escalate to the relevant Nodal Officer or Ombudsman if the issue persists."
-  ]
-};
-
 export class GeminiService {
-  private ai: GoogleGenAI;
+  private ai = new GoogleGenAI({
+    apiKey: import.meta.env.VITE_GEMINI_API_KEY,
+  });
 
-  constructor() {
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is missing in environment variables");
-    }
-
-    // Only created ONCE on server start
-    this.ai = new GoogleGenAI({ apiKey });
-  }
-
-  async getNextSteps(
-    incidentDescription: string
-  ): Promise<GeminiResult> {
+  async getNextSteps(incidentDescription: string) {
     try {
-      const controller = new AbortController();
-
-      // 🔥 Timeout protection (10s)
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
       const response = await this.ai.models.generateContent({
+        // ✅ FREE MODEL
         model: "gemini-1.5-flash",
-        contents: `Situation: "${incidentDescription}". 
-Role: You are the Naya Sahai Navigation Engine. 
-Output: STRICT JSON ONLY.
 
-Task:
-1. Provide a calm 2-sentence empathetic summary.
-2. Provide exactly 3 actionable steps:
-   - WHAT TO DO NOW
-   - WHAT TO DO IF BLOCKED
-   - WHERE TO ESCALATE
+        contents: `
+Situation: "${incidentDescription}"
 
-Rules:
-- Consumer disputes → 1915/NCH/e-Daakhil only
-- Criminal/cyber crimes → 1930/Cyber Cell only
-- No legal jargon. Mobile friendly.`,
+You are the Naya Sahai Navigation Engine.
+
+Return JSON only:
+{
+  "summary": string,
+  "steps": string[3]
+}
+        `,
 
         config: {
           responseMimeType: "application/json",
@@ -66,41 +33,30 @@ Rules:
                 type: Type.ARRAY,
                 items: { type: Type.STRING },
                 minItems: 3,
-                maxItems: 3
-              }
+                maxItems: 3,
+              },
             },
-            required: ["summary", "steps"]
-          }
+            required: ["summary", "steps"],
+          },
         },
-
-        signal: controller.signal
       });
 
-      clearTimeout(timeout);
+      if (!response.text) throw new Error("Empty response");
 
-      const text = response.text;
+      return JSON.parse(response.text);
+    } catch (error) {
+      console.warn("Gemini fallback triggered:", error);
 
-      if (!text) return FALLBACK;
-
-      // 🔥 Safe JSON parse
-      try {
-        const parsed = JSON.parse(text.trim());
-
-        if (
-          !parsed.summary ||
-          !Array.isArray(parsed.steps) ||
-          parsed.steps.length !== 3
-        ) {
-          return FALLBACK;
-        }
-
-        return parsed;
-      } catch {
-        return FALLBACK;
-      }
-    } catch (err) {
-      console.error("Gemini API error:", err);
-      return FALLBACK;
+      // ✅ ALWAYS WORKS EVEN IF QUOTA EXCEEDED
+      return {
+        summary:
+          "We are here to help you. Follow these official steps to stay safe.",
+        steps: [
+          "Preserve all evidence immediately.",
+          "Report to the official government authority.",
+          "Escalate to higher authorities if ignored.",
+        ],
+      };
     }
   }
 }
