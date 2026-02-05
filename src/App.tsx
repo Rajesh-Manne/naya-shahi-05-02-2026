@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Shield, 
@@ -35,7 +34,6 @@ import { geminiService } from './services/gemini';
 
 const Header = ({ onHome }: { onHome: () => void }) => (
   <header className="sticky top-0 z-50 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
-
     <div className="flex items-center gap-2.5 cursor-pointer group" onClick={onHome}>
       <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200 group-hover:scale-105 transition-transform">
         <Shield className="w-5 h-5 text-white" />
@@ -61,7 +59,11 @@ const SectionTitle = ({ children, subtitle }: { children?: React.ReactNode, subt
 );
 
 const NextStepsEngine = ({ steps }: { steps: string[] }) => {
-  const [completed, setCompleted] = useState<boolean[]>(new Array(steps.length).fill(false));
+  const [completed, setCompleted] = useState<boolean[]>([]);
+
+  useEffect(() => {
+    setCompleted(new Array(steps.length).fill(false));
+  }, [steps]);
 
   const toggle = (idx: number) => {
     const next = [...completed];
@@ -117,6 +119,12 @@ const App: React.FC = () => {
     );
   }, [searchQuery]);
 
+  // FIX: Moved useMemo to top level of App component
+  const staticSteps = useMemo(
+    () => selectedIncident?.immediateActions.map(a => a.title) || [],
+    [selectedIncident]
+  );
+
   const handleIncidentSelect = (path: IncidentPath) => {
     setSelectedIncident(path);
     setDynamicSummary(null);
@@ -169,17 +177,7 @@ const App: React.FC = () => {
           <button 
             key={path.id}
             onClick={() => handleIncidentSelect(path)}
-            className="flex items-center justify-between p-8
-bg-white
-border-4 border-slate-300
-rounded-3xl
-text-left
-shadow-lg shadow-slate-300/40
-hover:shadow-2xl hover:shadow-indigo-200/40
-hover:border-indigo-500
-hover:-translate-y-1
-transition-all duration-300
-group relative"
+            className="flex items-center justify-between p-8 bg-white border-4 border-slate-300 rounded-3xl text-left shadow-lg shadow-slate-300/40 hover:shadow-2xl hover:shadow-indigo-200/40 hover:border-indigo-500 hover:-translate-y-1 transition-all duration-300 group relative"
           >
             <div className="flex-1 pr-6 relative z-10">
               <span className={`inline-flex items-center px-3 py-1 text-[11px] font-black rounded-full mb-4 uppercase tracking-widest border-2 ${path.category === IncidentCategory.FINANCIAL_FRAUD ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
@@ -281,11 +279,11 @@ group relative"
 
     return (
       <div className="pb-40 bg-slate-50 min-h-screen animate-in">
-  <div className="bg-white border-b border-slate-200 p-5 flex items-center gap-5 sticky top-[65px] z-40 shadow-sm ">
-    <button
-      onClick={() => setCurrentScreen('HOME')}
-      className="w-12 h-12 flex items-center justify-center bg-white rounded-full border-2 border-slate-300 shadow-md hover:bg-slate-50 transition-colors"
-    >
+        <div className="bg-white border-b border-slate-200 p-5 flex items-center gap-5 sticky top-[65px] z-40 shadow-sm ">
+          <button
+            onClick={() => setCurrentScreen('HOME')}
+            className="w-12 h-12 flex items-center justify-center bg-white rounded-full border-2 border-slate-300 shadow-md hover:bg-slate-50 transition-colors"
+          >
             <ArrowLeft className="w-6 h-6 text-slate-600" />
           </button>
           <div className="flex-1 overflow-hidden">
@@ -299,7 +297,6 @@ group relative"
         </div>
 
         <div className="p-6 max-w-2xl mx-auto space-y-10">
-          {/* Situation Analysis Summary Card - More Compact */}
           <div className="bg-white border-2 border-slate-200 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden flex flex-col justify-center">
             <div className="absolute top-0 right-0 p-6">
               <Sparkles className={`w-8 h-8 transition-all duration-1000 ${isAiLoading ? 'text-indigo-600 animate-pulse scale-110' : 'text-indigo-400/30'}`} />
@@ -319,7 +316,7 @@ group relative"
             )}
           </div>
 
-          <NextStepsEngine steps={dynamicSummary?.steps || selectedIncident.immediateActions.map(a => a.title)} />
+          <NextStepsEngine steps={staticSteps} />
 
           <section>
             <SectionTitle subtitle="Immediate defensive measures">Protection Protocol</SectionTitle>
@@ -342,7 +339,7 @@ group relative"
                       </div>
                       <div className="flex-1 pt-1.5">
                         <h4 className={`font-black text-xl tracking-tight ${action.isEmergency ? 'text-red-900' : 'text-slate-900'}`}>{action.title}</h4>
-                        <p className={`mt-2 text-base font-bold leading-relaxed ${action.isEmergency ? 'text-red-800/80' : 'text-slate-500'}`}>{action.description}</p>
+                        <p className={`mt-2 text-base font-bold leading-relaxed ${action.isEmergency ? 'text-red-800/80' : 'text-slate-50'}`}>{action.description}</p>
                       </div>
                     </div>
                   </div>
@@ -508,8 +505,7 @@ group relative"
         {currentScreen === 'ABOUT' && renderTrust()}
       </main>
 
-    <nav className="fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-around py-5 px-8 z-50 shadow-lg">
-
+      <nav className="fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-around py-5 px-8 z-50 shadow-lg">
         <button 
           onClick={() => setCurrentScreen('HOME')}
           className={`flex flex-col items-center gap-2 transition-all duration-300 ${currentScreen === 'HOME' ? 'text-indigo-600 scale-110 font-black' : 'text-slate-400 hover:text-slate-600'}`}
