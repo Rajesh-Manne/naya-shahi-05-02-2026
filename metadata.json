@@ -1,0 +1,7 @@
+{
+  "name": "Naya Sahai",
+  "description": "India's Victim Navigation System: A trust-first platform providing clear, step-by-step guidance for financial fraud, cybercrime, and consumer disputes.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

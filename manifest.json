@@ -1,0 +1,18 @@
+
+{
+  "short_name": "Naya Sahai",
+  "name": "Naya Sahai - Victim Navigation",
+  "description": "India's official path to justice.",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#4F46E5",
+  "background_color": "#F8FAFC"
+}
