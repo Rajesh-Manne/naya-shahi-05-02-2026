@@ -146,72 +146,89 @@ const App: React.FC = () => {
     }
   }, [selectedIncident, currentScreen]);
 
-  const renderHome = () => (
-    <div className="p-6 max-w-2xl mx-auto pb-32 animate-in">
-      <div className="mt-8 mb-10">
-        <h2 className="text-5xl font-extrabold text-slate-900 leading-[1.1] tracking-tighter">
-          Naya Sahai <br/><span className="gradient-text">Victim OS.</span>
-        </h2>
-        <p className="text-slate-500 mt-6 text-xl leading-relaxed font-semibold max-w-md">
-          Trusted navigation when things go wrong. No jargon. Only official paths.
-        </p>
-      </div>
+  // ONLY showing the changed part to avoid repeating your 1200+ lines
 
-      <div className="relative mb-14 group">
-        <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
-          <Search className="text-slate-400 w-6 h-6 group-focus-within:text-indigo-600 transition-colors" />
-        </div>
-        <input 
-          type="text" 
-          placeholder="What went wrong? (e.g. UPI fraud)"
-          className="w-full bg-white border-4 border-slate-200 rounded-[2rem] py-6 pl-16 pr-8 shadow-2xl focus:ring-8 focus:ring-indigo-500/10 focus:border-indigo-500/50 focus:outline-none text-xl font-bold transition-all placeholder:text-slate-400"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
+// ============================
+// renderHome()
+// ============================
 
-      <SectionTitle subtitle="Official routing for crime and disputes">Select Incident Category</SectionTitle>
-      
-      <div className="grid gap-6">
-        {filteredIncidents.map(path => (
-          <button 
-            key={path.id}
-            onClick={() => handleIncidentSelect(path)}
-            className="flex items-center justify-between p-8 bg-white border-4 border-slate-300 rounded-3xl text-left shadow-lg shadow-slate-300/40 hover:shadow-2xl hover:shadow-indigo-200/40 hover:border-indigo-500 hover:-translate-y-1 transition-all duration-300 group relative"
-          >
-            <div className="flex-1 pr-6 relative z-10">
-              <span className={`inline-flex items-center px-3 py-1 text-[11px] font-black rounded-full mb-4 uppercase tracking-widest border-2 ${path.category === IncidentCategory.FINANCIAL_FRAUD ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
-                {path.category}
-              </span>
-              <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors leading-tight">{path.title}</h3>
-              <p className="text-slate-500 text-base font-bold line-clamp-2 leading-relaxed opacity-90">{path.summary}</p>
-            </div>
-            <div className="w-14 h-14 rounded-full bg-slate-50 border-2 border-slate-200 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300 relative z-10 shadow-md">
-              <ChevronRight className="w-6 h-6" />
-            </div>
-          </button>
-        ))}
-      </div>
+const renderHome = () => (
+  <div className="p-6 max-w-5xl mx-auto pb-32 animate-in">
+    <div className="mt-8 mb-10">
+      <h2 className="text-5xl font-extrabold text-slate-900 leading-[1.1] tracking-tighter">
+        Naya Sahai <br />
+        <span className="gradient-text">Victim OS.</span>
+      </h2>
 
-      <div className="grid grid-cols-2 gap-6 mt-14">
-        <button 
-          onClick={() => setCurrentScreen('RIGHTS')}
-          className="p-8 bg-white border-2 border-slate-200 rounded-[2.5rem] flex flex-col items-center gap-4 shadow-xl hover:bg-indigo-50 group transition-all border-b-8 border-b-indigo-500"
-        >
-          <div className="w-16 h-16 rounded-3xl bg-indigo-100 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform border-2 border-indigo-200">
-            <BookOpen className="w-8 h-8" />
-          </div>
-          <span className="font-black text-slate-900 text-base tracking-tight">Citizen Rights</span>
-        </button>
-        <button className="p-8 bg-white border-2 border-slate-200 rounded-[2.5rem] flex flex-col items-center gap-4 shadow-xl hover:bg-rose-50 group transition-all border-b-8 border-b-rose-500">
-          <div className="w-16 h-16 rounded-3xl bg-rose-100 text-rose-600 flex items-center justify-center group-hover:scale-110 transition-transform border-2 border-rose-200">
-            <Phone className="w-8 h-8" />
-          </div>
-          <span className="font-black text-slate-900 text-base tracking-tight">Emergencies</span>
-        </button>
-      </div>
+      <p className="text-slate-500 mt-6 text-xl leading-relaxed font-semibold max-w-md">
+        Trusted navigation when things go wrong. No jargon. Only official paths.
+      </p>
     </div>
-  );
+
+    {/* Search */}
+    <div className="relative mb-14 group">
+      <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
+        <Search className="text-slate-400 w-6 h-6 group-focus-within:text-indigo-600 transition-colors" />
+      </div>
+
+      <input
+        type="text"
+        placeholder="What went wrong? (e.g. UPI fraud)"
+        className="w-full bg-white border-4 border-slate-200 rounded-[2rem] py-6 pl-16 pr-8 shadow-2xl focus:ring-8 focus:ring-indigo-500/10 focus:border-indigo-500/50 focus:outline-none text-xl font-bold transition-all placeholder:text-slate-400"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+    </div>
+
+    <SectionTitle subtitle="Official routing for crime and disputes">
+      Select Incident Category
+    </SectionTitle>
+
+    {/* ============================ */}
+    {/* ✅ UPDATED GRID LAYOUT HERE */}
+    {/* ============================ */}
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+      {filteredIncidents.map((path) => (
+        <button
+          key={path.id}
+          onClick={() => handleIncidentSelect(path)}
+          className="flex items-center justify-between p-8 bg-white border-4 border-slate-300 rounded-3xl text-left shadow-lg shadow-slate-300/40 hover:shadow-2xl hover:shadow-indigo-200/40 hover:border-indigo-500 hover:-translate-y-1 transition-all duration-300 group relative h-full"
+        >
+          <div className="flex-1 pr-6 relative z-10">
+            <span
+              className={`inline-flex items-center px-3 py-1 text-[11px] font-black rounded-full mb-4 uppercase tracking-widest border-2 ${
+                path.category === IncidentCategory.FINANCIAL_FRAUD
+                  ? 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                  : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+              }`}
+            >
+              {path.category}
+            </span>
+
+            <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors leading-tight">
+              {path.title}
+            </h3>
+
+            <p className="text-slate-500 text-base font-bold line-clamp-2 leading-relaxed opacity-90">
+              {path.summary}
+            </p>
+          </div>
+
+          <div className="w-14 h-14 rounded-full bg-slate-50 border-2 border-slate-200 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300 relative z-10 shadow-md">
+            <ChevronRight className="w-6 h-6" />
+          </div>
+        </button>
+      ))}
+    </div>
+
+    {/* Bottom quick actions */}
+    <div className="grid grid-cols-2 gap-6 mt-14">
+      ...
+    </div>
+  </div>
+);
+
 
   const renderChecklist = () => {
     if (!selectedIncident) return null;

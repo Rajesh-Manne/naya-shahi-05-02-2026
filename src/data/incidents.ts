@@ -437,7 +437,6 @@ export const INCIDENT_PATHS: IncidentPath[] = [
 /* ======================================================
    LOAN APP HARASSMENT
 ====================================================== */
-
 {
   id:'loan-app-harassment',
   category:IncidentCategory.FINANCIAL_FRAUD,
