@@ -1,6 +1,4 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { createRoot } from 'react-dom/client';
 import { 
   BrowserRouter, 
   Routes, 
@@ -46,7 +44,9 @@ import {
   Printer,
   FileDown
 } from 'lucide-react';
-// import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
+import { AuthGate } from '../src/components/AuthGate';
+import { CaseTracker } from '../src/components/CaseTracker';
 
 // --- Types & Constants ---
 
@@ -289,7 +289,6 @@ const RecoveryRoadmap = ({ incident }: { incident: IncidentPath }) => {
         {roadmapSteps.map((step, idx) => (
           <div key={idx} className="relative">
             <div className="absolute -left-10 top-0 w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg border-4 border-slate-50 z-10">
-              {/* Added generic type to React.ReactElement to fix the 'size' prop TypeScript error */}
               {React.cloneElement(step.icon as React.ReactElement<{ size?: number }>, { size: 18 })}
             </div>
             <div className="bg-white border-2 border-slate-200 p-8 rounded-[2.5rem] shadow-sm hover:border-indigo-400 transition-colors">
@@ -320,14 +319,8 @@ const PlanResult = () => {
     [incidentId]
   );
 
-  const [cases, setCases] = useState<any[]>(getFromLocal(STORAGE_KEYS.CASES) || []);
-
   const inputClasses = "w-full p-4 bg-white border-2 border-slate-900 rounded-xl font-bold outline-none focus:ring-2 focus:ring-gray-400 focus:border-black transition-all placeholder:text-gray-400 text-slate-900";
   const labelClasses = "text-base font-bold text-slate-900 block mb-2";
-
-  useEffect(() => {
-    saveToLocal(STORAGE_KEYS.CASES, cases);
-  }, [cases]);
 
   if (!plan || !incidentData || !incident) return <div className="p-20 text-center font-black">Plan not found. <Link to="/" className="text-indigo-600 underline">Start New Path</Link></div>;
 
@@ -350,92 +343,114 @@ const PlanResult = () => {
     );
   };
 
- const handleGenerateEvidence = () => {
-  if (selectedEvidence.length === 0) return;
+  const handleGenerateEvidence = async () => {
+    if (selectedEvidence.length === 0) return;
 
-  setGenerating(true);
+    setGenerating(true);
+    try {
+      const ai = new GoogleGenAI({ 
+  apiKey: import.meta.env.VITE_GOOGLE_API_KEY 
+});
 
-  try {
-    const totalLoss = incidentData.transactions.reduce(
-      (acc: number, t: any) => acc + Number(t.amount || 0),
-      0
-    );
+      const totalLoss = incidentData.transactions.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
+      const caseId = `NS-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      const generatedDate = new Date().toLocaleString();
 
-    const caseId = `NS-${Math.random()
-      .toString(36)
-      .substr(2, 6)
-      .toUpperCase()}`;
+      const prompt = `
+        You are generating an OFFICIAL EVIDENCE PACKAGE document for Microsoft Word (.docx).
+        CRITICAL RULES:
+        1. Output PLAIN FORMATTED TEXT only.
+        2. NO markdown (no #, **, _, etc.).
+        3. NO emojis.
+        4. NO explanations or intro/outro text.
+        5. Tone must be formal, professional, and official.
+        6. The format must be IDENTICAL for all incident types.
+        7. The document must look print-ready.
 
-    const generatedDate = new Date().toLocaleString();
+        ========================================
+        MANDATORY DOCUMENT LAYOUT
+        ========================================
 
-    const transactionRows = incidentData.transactions
-      .map(
-        (t: any) =>
-          `${(t.utr || "").padEnd(20)} ${(t.date || "").padEnd(15)} ₹${t.amount || 0}`
-      )
-      .join("\n");
+        Center title:
+        NAYA SAHAI
+        OFFICIAL EVIDENCE PACKAGE
 
-    const evidenceList = selectedEvidence
-      .map((item) => `☑ ${item}`)
-      .join("\n");
+        Generated On: ${generatedDate}
+        Case ID: ${caseId}
+        Incident Type: ${incident.title}
 
-    const doc = `
-NAYA SAHAI
-OFFICIAL EVIDENCE PACKAGE
+        ========================================
+        SECTION A – INCIDENT SUMMARY
+        ========================================
+        Location: ${incidentData.location}
+        Date: ${incidentData.date}
+        Time: ${incidentData.time}
+        Category: ${incident.category}
 
-Generated On: ${generatedDate}
-Case ID: ${caseId}
-Incident Type: ${incident.title}
+        ========================================
+        SECTION B – INCIDENT DESCRIPTION
+        ========================================
+        Write one formal narrative paragraph clearly explaining the incident based on the following input:
+        "${incidentData.description}"
 
-========================================
-SECTION A – INCIDENT SUMMARY
-========================================
-Location: ${incidentData.location}
-Date: ${incidentData.date}
-Time: ${incidentData.time}
-Category: ${incident.category}
+        ========================================
+        SECTION C – FINANCIAL / LOSS DETAILS
+        ========================================
+        Total Loss Amount: ₹${totalLoss}
 
-========================================
-SECTION B – INCIDENT DESCRIPTION
-========================================
-${incidentData.description}
+        Transaction Details:
+        Reference/UTR        Date            Amount (INR)
+        ------------------------------------------------
+        ${incidentData.transactions.map((t: any) => `${t.utr.padEnd(20)} ${t.date.padEnd(15)} ₹${t.amount}`).join('\n        ')}
 
-========================================
-SECTION C – FINANCIAL / LOSS DETAILS
-========================================
-Total Loss Amount: ₹${totalLoss}
+        ========================================
+        SECTION D – ATTACHED EVIDENCE
+        ========================================
+        The following items are officially attached to this package:
+        ${selectedEvidence.map(item => `☑ ${item}`).join('\n        ')}
 
-Reference/UTR        Date            Amount (INR)
-------------------------------------------------
-${transactionRows}
+        ========================================
+        SECTION E – ACTIONS TAKEN
+        ========================================
+        List the following actions as formal sentences:
+        - Reporting via Naya Sahai Recovery System initiated.
+        - Steps taken to block unauthorized access to accounts.
+        - Preparation of official documentation for submission to authorities.
 
-========================================
-SECTION D – ATTACHED EVIDENCE
-========================================
-${evidenceList}
+        ========================================
+        SECTION F – DECLARATION
+        ========================================
+        I hereby declare that the above information is true and correct to the best of my knowledge and belief. This document is prepared for official submission to the concerned authority.
 
-========================================
-SECTION F – DECLARATION
-========================================
-I hereby declare that the above information is true and correct.
+        Signature: _______________________________
 
-Signature: ___________________________
+        Name: _______________________________
 
-========================================
-Naya Sahai Recovery System – Auto Generated
-========================================
-`;
+        Date: _______________________________
 
-    setEvidenceDoc(doc);
-    saveToLocal(STORAGE_KEYS.GENERATED_EVIDENCE, doc);
-  } catch (e) {
-    console.error(e);
-    alert("Failed to generate document.");
-  } finally {
-    setGenerating(false);
-  }
-};
+        ========================================
+        Footer:
+        Naya Sahai Recovery System – Auto Generated Document
+        ========================================
 
+        Return ONLY the document text.
+      `;
+      
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+      });
+      
+      const doc = response.text || 'Error: Generation failed.';
+      setEvidenceDoc(doc);
+      saveToLocal(STORAGE_KEYS.GENERATED_EVIDENCE, doc);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to generate document. Please check your connection.');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   if (activeTool === 'complaint') {
     const totalLoss = incidentData.transactions.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
@@ -457,32 +472,10 @@ Naya Sahai Recovery System – Auto Generated
     return (
       <div className="p-6 max-w-2xl mx-auto space-y-10 animate-in pb-40">
         <button onClick={() => setActiveTool(null)} className="flex items-center gap-2 font-black text-indigo-600"><ArrowLeft /> Back</button>
-        <SectionTitle subtitle="Centralized log for all filings">Incident Tracker</SectionTitle>
-        <div className="bg-white p-8 border-2 border-slate-200 rounded-[3rem] space-y-4 shadow-lg shadow-gray-400/40">
-          <label className={labelClasses}>Add New Reference</label>
-          <input placeholder="e.g. Police Acknowledgement Number" className={inputClasses} onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const val = (e.target as HTMLInputElement).value;
-                if (!val) return;
-                setCases([{ id: Date.now().toString(), title: val, refNo: 'ACK-' + Date.now().toString().slice(-6), status: 'Reported', date: new Date().toLocaleDateString() }, ...cases]);
-                (e.target as HTMLInputElement).value = '';
-              }
-            }} />
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Press ENTER to add new log.</p>
-        </div>
-        <div className="space-y-4">
-          {cases.length === 0 && <div className="text-center py-20 text-slate-400 font-bold italic">No active filings tracked.</div>}
-          {cases.map(c => (
-            <div key={c.id} className="p-8 bg-white border-2 border-slate-200 rounded-[2.5rem] flex justify-between items-center shadow-md shadow-gray-400/20 hover:border-indigo-600 transition-all">
-              <div>
-                <h5 className="text-xl font-black text-slate-900">{c.title}</h5>
-                <p className="text-xs text-slate-600 font-bold">Ref: {c.refNo} • Logged: {c.date}</p>
-                <div className="mt-2 flex items-center gap-2"><span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-200">{c.status}</span></div>
-              </div>
-              <button onClick={() => setCases(cases.filter(x => x.id !== c.id))} className="text-slate-300 hover:text-red-600 transition-colors p-2"><Trash2 className="w-6 h-6" /></button>
-            </div>
-          ))}
-        </div>
+        <SectionTitle subtitle="Secure Cloud Sync via Supabase">Case Management</SectionTitle>
+        <AuthGate>
+          <CaseTracker />
+        </AuthGate>
       </div>
     );
   }
@@ -538,7 +531,7 @@ Naya Sahai Recovery System – Auto Generated
                 </div>
                 <div className="flex gap-4 w-full md:w-auto">
                   <Button onClick={() => triggerDownload('Official_Evidence_Package.doc', evidenceDoc)} variant="premium" className="px-8 shadow-none"><Printer className="w-5 h-5" /> Download for Word</Button>
-                  <Button onClick={() => { setEvidenceDoc(null); saveToLocal(STORAGE_KEYS.GENERATED_EVIDENCE, null); }} variant="premium" className="px-8 shadow-none">Modify Selection</Button>
+                  <Button onClick={() => { setEvidenceDoc(null); saveToLocal(STORAGE_KEYS.GENERATED_EVIDENCE, null); }} variant="outline" className="border-indigo-400 text-white bg-transparent hover:bg-indigo-800 shadow-none">Modify Selection</Button>
                 </div>
              </div>
              <div className="bg-white p-12 border-2 border-slate-900 rounded-[3rem] shadow-xl overflow-hidden font-mono text-sm leading-relaxed text-slate-900 select-all whitespace-pre">{evidenceDoc}</div>
@@ -794,14 +787,51 @@ const App: React.FC = () => {
     <BrowserRouter>
       <div className="min-h-screen bg-slate-50 flex flex-col antialiased">
         <Header />
-        <main className="flex-1"><Routes><Route path="/" element={<Home />} /><Route path="/incident/:id" element={<IncidentDetails />} /><Route path="/plans" element={<PlanSelect />} /><Route path="/plans/payment" element={<PlanPayment />} /><Route path="/plans/details" element={<PlanDetails />} /><Route path="/plans/result" element={<PlanResult />} /><Route path="*" element={<Home />} /></Routes></main>
-        <nav className="fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-around py-5 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]"><NavLink to="/" icon={<Navigation />} label="Explore" /><NavLink to="/plans/result" icon={<CheckSquare />} label="My Recovery" /><NavLink to="/about" icon={<Shield />} label="Trust" /></nav>
+        <main className="flex-1">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/incident/:id" element={<IncidentDetails />} />
+            <Route path="/plans" element={<PlanSelect />} />
+            <Route path="/plans/payment" element={<PlanPayment />} />
+            <Route path="/plans/details" element={<PlanDetails />} />
+            <Route path="/plans/result" element={<PlanResult />} />
+            <Route path="/about" element={<TrustInfo />} />
+            <Route path="*" element={<Home />} />
+          </Routes>
+        </main>
+        <nav className="fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-around py-5 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+          <NavLink to="/" icon={<Navigation />} label="Explore" />
+          <NavLink to="/plans/result" icon={<CheckSquare />} label="My Recovery" />
+          <NavLink to="/about" icon={<Shield />} label="Trust" />
+        </nav>
       </div>
     </BrowserRouter>
   );
 };
 
-const container = document.getElementById('root');
-if (container) { createRoot(container).render(<App />); }
+const TrustInfo = () => (
+  <div className="p-12 text-center max-w-3xl mx-auto animate-in pb-40">
+    <div className="bg-indigo-600 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto text-white shadow-xl shadow-indigo-100 mb-10 border-2 border-slate-200"><Shield className="w-10 h-10" /></div>
+    <h2 className="text-5xl font-black text-slate-900 mb-8 tracking-tighter">Verified Recovery OS</h2>
+    <p className="text-slate-600 font-bold text-xl mb-12 leading-relaxed max-w-xl mx-auto">All legal formats comply with the latest BNS and IT Act standards. Your data is processed locally and never stored.</p>
+    <div className="grid grid-cols-2 gap-6 text-left mb-16">
+      <div className="p-8 bg-white border-2 border-slate-100 rounded-3xl shadow-lg shadow-gray-400/20">
+        <Lock className="text-indigo-600 mb-4" />
+        <h4 className="font-black text-slate-900">Privacy First</h4>
+        <p className="text-xs font-bold text-slate-600 mt-1">Local encryption of all sensitive transaction evidence.</p>
+      </div>
+      <div className="p-8 bg-white border-2 border-slate-100 rounded-3xl shadow-lg shadow-gray-400/20">
+        <CheckSquare className="text-emerald-600 mb-4" />
+        <h4 className="font-black text-slate-900">Govt Compliant</h4>
+        <p className="text-xs font-bold text-slate-600 mt-1">Directly integrated with official Cyber Cell submission logic.</p>
+      </div>
+    </div>
+    <Link to="/" className="inline-flex items-center gap-3 text-indigo-600 font-black text-lg group transition-all">
+      <ArrowLeft className="group-hover:-translate-x-2 transition-transform" /> Back to Navigator
+    </Link>
+  </div>
+);
+
+
 
 export default App;
