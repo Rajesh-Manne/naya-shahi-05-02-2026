@@ -45,8 +45,9 @@ import {
   FileDown
 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
-import { AuthGate } from '../src/components/AuthGate';
-import { CaseTracker } from '../src/components/CaseTracker';
+import { AuthGate } from './components/AuthGate';
+import { CaseTracker } from './components/CaseTracker';
+import { EvidenceManager } from './components/EvidenceManager';
 
 // --- Types & Constants ---
 
@@ -485,62 +486,47 @@ const PlanResult = () => {
   }
 
   if (activeTool === 'pack') {
+    const totalLoss = incidentData.transactions.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
+    const evidenceList = incidentData.evidence && incidentData.evidence.length > 0 
+      ? `\n\nEvidence Attached:\n${incidentData.evidence.map((e: string) => `- ${e}`).join('\n')}`
+      : "";
+    
+    const complaintText = `To,\nThe Station House Officer,\nCyber Crime Cell,\n${incidentData.location}\n\nSubject: Official Complaint regarding ${incident.title} of ₹${totalLoss}.\n\nRespected Sir/Madam,\nI am reporting a fraud that occurred on ${incidentData.date}.\n\nIncident Narrative:\n${incidentData.description}\n\nTransaction Details:\n${incidentData.transactions.map((t: any) => `- UTR: ${t.utr}, Amount: ₹${t.amount}, Date: ${t.date}`).join('\n')}${evidenceList}\n\nPlease register this complaint and initiate recovery protocols.\n\nSigned,\n[Your Name]`;
+
     return (
       <div className="p-6 max-w-4xl mx-auto space-y-10 animate-in pb-40">
         <button onClick={() => setActiveTool(null)} className="flex items-center gap-2 font-black text-indigo-600 hover:translate-x-[-4px] transition-transform"><ArrowLeft /> Back to Dashboard</button>
-        <SectionTitle subtitle="Ready-to-print official submission package">Evidence Pack</SectionTitle>
+        <SectionTitle subtitle="Professional investigation-ready submission package">Evidence Package Builder</SectionTitle>
         
-        {!evidenceDoc ? (
-          <div className="bg-white border-2 border-slate-200 rounded-[3rem] p-12 text-center shadow-xl space-y-8 relative z-10">
-            <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mx-auto text-indigo-600">
-              <FileSearch className="w-12 h-12" />
+        <div className="bg-white border-2 border-slate-200 rounded-[3rem] p-8 md:p-12 shadow-xl space-y-10">
+          <div className="flex items-start gap-6 bg-indigo-50 p-6 rounded-3xl border-2 border-indigo-100">
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm shrink-0">
+              <ShieldCheck size={24} />
             </div>
-            <div className="space-y-4">
-              <h3 className="text-2xl font-black text-slate-900">Build Your Evidence File</h3>
-              <p className="text-slate-600 font-bold text-lg max-w-md mx-auto">Select the evidence items you have available to include in the official package.</p>
+            <div>
+              <h4 className="text-lg font-black text-slate-900">Official Bundle Protocol</h4>
+              <p className="text-sm font-bold text-indigo-900/60 leading-tight mt-1">
+                Upload your proofs below. We will automatically generate a consolidated PDF, structured folders, and metadata for direct submission to the Cyber Crime Portal.
+              </p>
             </div>
-            
-            <div className="max-w-md mx-auto space-y-3 relative z-10">
-              {incident.preparedChecklist.map((item: string) => (
-                <label 
-                  key={item} 
-                  className={`flex items-center gap-4 p-5 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-md select-none ${selectedEvidence.includes(item) ? 'bg-indigo-50 border-indigo-600' : 'bg-white border-slate-200'}`}
-                >
-                  <input 
-                    type="checkbox" 
-                    className="w-5 h-5 accent-indigo-600 cursor-pointer" 
-                    checked={selectedEvidence.includes(item)}
-                    onChange={() => toggleEvidence(item)}
-                  />
-                  <span className={`font-bold text-sm ${selectedEvidence.includes(item) ? 'text-indigo-950' : 'text-slate-600'}`}>{item}</span>
-                </label>
-              ))}
-            </div>
+          </div>
 
-            <Button 
-              onClick={handleGenerateEvidence} 
-              disabled={generating || selectedEvidence.length === 0} 
-              className="py-6 text-xl"
-            >
-              {generating ? <><Loader2 className="animate-spin" /> Formatting Document...</> : <><Sparkles /> Generate Package</>}
-            </Button>
-            {selectedEvidence.length === 0 && <p className="text-xs font-bold text-red-500">Please select at least one evidence item to continue.</p>}
-          </div>
-        ) : (
-          <div className="space-y-8 relative z-10">
-             <div className="bg-indigo-900 text-white p-8 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6">
-                <div>
-                  <h4 className="text-xl font-black">Official Document Ready</h4>
-                  <p className="text-indigo-200 font-bold text-sm">Download as Word (.doc) to print and submit.</p>
-                </div>
-                <div className="flex gap-4 w-full md:w-auto">
-                  <Button onClick={() => triggerDownload('Official_Evidence_Package.doc', evidenceDoc)} variant="premium" className="px-8 shadow-none"><Printer className="w-5 h-5" /> Download for Word</Button>
-                  <Button onClick={() => { setEvidenceDoc(null); saveToLocal(STORAGE_KEYS.GENERATED_EVIDENCE, null); }} variant="outline" className="border-indigo-400 text-white bg-transparent hover:bg-indigo-800 shadow-none">Modify Selection</Button>
-                </div>
-             </div>
-             <div className="bg-white p-12 border-2 border-slate-900 rounded-[3rem] shadow-xl overflow-hidden font-mono text-sm leading-relaxed text-slate-900 select-all whitespace-pre">{evidenceDoc}</div>
-          </div>
-        )}
+          <EvidenceManager 
+            incidentData={incidentData}
+            incident={incident}
+            complaintText={complaintText}
+            onPackageGenerated={(blob) => {
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `NayaSahai_Evidence_Package_${new Date().getTime()}.zip`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+            }}
+          />
+        </div>
       </div>
     );
   }
