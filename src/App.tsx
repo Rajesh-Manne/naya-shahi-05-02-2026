@@ -38,6 +38,7 @@ import {
   PhoneCall,
   Gavel,
   ChevronDown,
+  RefreshCcw,
   ChevronUp,
   ShieldAlert,
   ArrowRight,
@@ -48,6 +49,8 @@ import { GoogleGenAI } from "@google/genai";
 import { AuthGate } from './components/AuthGate';
 import { CaseTracker } from './components/CaseTracker';
 import { EvidenceManager } from './components/EvidenceManager';
+import { WhatsAppSupport } from './components/WhatsAppSupport';
+import { PrivacyPolicy, TermsAndConditions, RefundPolicy, ContactInfo } from './components/PrivacyPolicy';
 
 // --- Types & Constants ---
 
@@ -534,16 +537,41 @@ const PlanResult = () => {
   if (activeTool === 'affidavit') {
     const totalLoss = incidentData.transactions.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
     const text = `AFFIDAVIT FOR BANK CHARGEBACK / OMBUDSMAN\n\nI, [Your Name], residing at ${incidentData.location},\nState as follows:\n\n1. I am a victim of a cyber fraud on ${incidentData.date}.\n2. Unauthorized loss amount: ₹${totalLoss}.\n3. Detailed Narrative: ${incidentData.description}\n4. Request for immediate reversal and investigation.\n\nSigned,\n__________________________\n[Victim Signature]\n\nDate: ${new Date().toLocaleDateString()}`;
+    
+    const handleWhatsAppShare = () => {
+      setGenerating(true);
+      const toast = document.createElement('div');
+      toast.className = "fixed top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl z-[100] animate-in fade-in slide-in-from-top-4";
+      toast.innerText = "Opening WhatsApp to share draft...";
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        const encodedText = encodeURIComponent(text);
+        window.open(`https://wa.me/8217617245?text=${encodedText}`, '_blank');
+        setGenerating(false);
+        if (toast.parentNode) document.body.removeChild(toast);
+      }, 800);
+    };
+
     return (
-      <div className="p-6 max-w-2xl mx-auto space-y-10 animate-in pb-40">
+      <div className="p-6 max-w-2xl mx-auto space-y-10 animate-in pb-40 relative">
         <button onClick={() => setActiveTool(null)} className="flex items-center gap-2 font-black text-indigo-600"><ArrowLeft /> Back</button>
         <SectionTitle subtitle="Required for Bank Ombudsman filings">Notary Draft</SectionTitle>
         <div className="bg-orange-50 p-6 border-2 border-slate-200 rounded-3xl flex gap-4 shadow-md shadow-gray-400/20">
           <Info className="text-orange-600 shrink-0" />
           <p className="text-sm font-bold text-orange-950 leading-tight">Print this on a ₹100 Non-Judicial stamp paper. Requires official Notary stamp.</p>
         </div>
-        <div className="bg-white p-10 border-2 border-slate-200 rounded-[3rem] font-mono text-sm shadow-inner select-all whitespace-pre">{text}</div>
-        <Button onClick={() => triggerDownload('Legal_Affidavit_Draft.txt', text)} className="bg-slate-900 border-2 border-slate-200">Download Template</Button>
+        <div className="bg-white p-10 border-2 border-slate-200 rounded-[3rem] font-mono text-sm shadow-inner select-all whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-relaxed">
+          {text}
+        </div>
+        <Button 
+          onClick={handleWhatsAppShare} 
+          disabled={generating}
+          className="bg-[#25D366] hover:bg-[#128C7E] border-2 border-white/20 shadow-[#25D366]/20"
+        >
+          {generating ? <Loader2 className="animate-spin" /> : <MessageCircle className="w-5 h-5" />}
+          Share via WhatsApp
+        </Button>
       </div>
     );
   }
@@ -692,13 +720,23 @@ const ImmediateSteps = ({ data }: { data: Action[] }) => (
   </section>
 );
 
+const Disclaimer = ({ className = "" }: { className?: string }) => (
+  <div className={`bg-amber-50 border-2 border-amber-200 p-6 rounded-3xl flex gap-4 ${className}`}>
+    <AlertTriangle className="text-amber-600 shrink-0" />
+    <p className="text-xs font-bold text-amber-950 leading-tight">
+      Disclaimer: Naya Sahai provides documentation and guidance only. Recovery outcomes depend on banks, authorities, and case specifics.
+    </p>
+  </div>
+);
+
 const PlanSelect = () => {
   const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState<any>(getFromLocal(STORAGE_KEYS.PLAN));
   const handleSelect = (plan: any) => { setSelectedPlan(plan); saveToLocal(STORAGE_KEYS.PLAN, plan); navigate('/plans/payment'); };
   return (
-    <div className="p-6 max-w-6xl mx-auto pb-40 animate-in">
+    <div className="p-6 max-w-6xl mx-auto pb-40 animate-in space-y-10">
       <SectionTitle subtitle="Professional assistance for recovery">Select Action Plan</SectionTitle>
+      <Disclaimer />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
         {PLANS.map((plan) => (
           <div key={plan.id} className={`p-8 bg-white border-2 rounded-[3.5rem] shadow-lg shadow-gray-400/30 transition-all hover:-translate-y-2 flex flex-col h-full ${selectedPlan?.id === plan.id ? 'border-indigo-600 ring-8 ring-indigo-50' : 'border-slate-100'}`}>
@@ -709,7 +747,12 @@ const PlanSelect = () => {
               <div className="flex items-baseline gap-1 mb-8"><span className="text-4xl font-black text-slate-900">₹{plan.price}</span><span className="text-slate-500 font-bold text-sm">/ incident</span></div>
               <ul className="space-y-4 mb-10">{plan.features.map(f => <li key={f} className="flex items-center gap-3 text-slate-900 font-bold text-xs leading-tight"><CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />{f}</li>)}</ul>
             </div>
-            <Button variant={selectedPlan?.id === plan.id ? 'primary' : 'outline'} className={selectedPlan?.id !== plan.id ? "border-slate-200 border-2" : ""} onClick={() => handleSelect(plan)}>Activate Plan</Button>
+            <div className="mt-auto space-y-4">
+              <p className="text-[10px] font-bold text-slate-400 text-center uppercase tracking-widest">
+                {plan.id === 'LAWYER' ? 'Scheduled Consultation' : 'Instant Document Access'}
+              </p>
+              <Button variant={selectedPlan?.id === plan.id ? 'primary' : 'outline'} className={selectedPlan?.id !== plan.id ? "border-slate-200 border-2" : ""} onClick={() => handleSelect(plan)}>Activate Plan</Button>
+            </div>
           </div>
         ))}
       </div>
@@ -721,19 +764,54 @@ const PlanPayment = () => {
   const navigate = useNavigate();
   const plan = getFromLocal(STORAGE_KEYS.PLAN);
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   useEffect(() => { if (!plan) navigate('/'); }, [plan, navigate]);
   if (!plan) return null;
   return (
-    <div className="p-6 max-w-2xl mx-auto pb-40 animate-in">
+    <div className="p-6 max-w-2xl mx-auto pb-40 animate-in space-y-10">
       <button onClick={() => navigate('/plans')} className="flex items-center gap-2 font-black text-indigo-600 mb-8"><ArrowLeft /> Change Plan</button>
-      <SectionTitle subtitle="Secure Gateway (Mock Mode)">Finalize Payment</SectionTitle>
+      <SectionTitle subtitle="Secure Gateway (Razorpay Ready)">Finalize Payment</SectionTitle>
+      <Disclaimer />
       <div className="bg-white border-2 border-slate-100 rounded-[3rem] p-10 shadow-lg shadow-gray-400/40 space-y-10">
         <div className="flex justify-between items-center">
-          <div><h4 className="text-2xl font-black text-slate-900">{plan.name}</h4><p className="text-slate-600 font-bold">Standard Incident Recovery</p></div>
+          <div>
+            <h4 className="text-2xl font-black text-slate-900">{plan.name}</h4>
+            <p className="text-slate-600 font-bold">Standard Incident Recovery</p>
+            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-1">
+              {plan.id === 'LAWYER' ? 'Includes 15-min Consultation' : 'Includes Instant Evidence Pack'}
+            </p>
+          </div>
           <div className="text-right"><span className="text-3xl font-black text-indigo-600">₹{plan.price}</span><p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mt-1">Total</p></div>
         </div>
+        
+        <div className="space-y-4">
+          <label className="flex items-start gap-4 cursor-pointer group">
+            <input 
+              type="checkbox" 
+              className="w-5 h-5 mt-1 accent-indigo-600" 
+              checked={agreed} 
+              onChange={(e) => setAgreed(e.target.checked)} 
+            />
+            <span className="text-xs font-bold text-slate-600 leading-tight group-hover:text-slate-900 transition-colors">
+              I acknowledge that Naya Sahai provides documentation assistance and informational guidance. I have read the <Link to="/terms" className="text-indigo-600 underline">Terms</Link> and <Link to="/refund" className="text-indigo-600 underline">Refund Policy</Link>.
+            </span>
+          </label>
+        </div>
+
         <div className="h-px bg-slate-200 opacity-50" />
-        <Button onClick={() => { setLoading(true); setTimeout(() => { setLoading(false); saveToLocal(STORAGE_KEYS.PAID, 'true'); navigate('/plans/details'); }, 1200); }} disabled={loading} className="shadow-black/10">{loading ? <Loader2 className="animate-spin" /> : `Complete Transaction`}</Button>
+        
+        <div className="space-y-4">
+          <Button 
+            onClick={() => { setLoading(true); setTimeout(() => { setLoading(false); saveToLocal(STORAGE_KEYS.PAID, 'true'); navigate('/plans/details'); }, 1200); }} 
+            disabled={loading || !agreed} 
+            className="shadow-black/10"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : `Pay ₹${plan.price} & Continue`}
+          </Button>
+          <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2">
+            <Lock size={10} /> Secure payment via Razorpay
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -859,25 +937,60 @@ const App: React.FC = () => {
             <Route path="/plans/details" element={<PlanDetails />} />
             <Route path="/plans/result" element={<PlanResult />} />
             <Route path="/about" element={<TrustInfo />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsAndConditions />} />
+            <Route path="/refund" element={<RefundPolicy />} />
             <Route path="*" element={<Home />} />
           </Routes>
         </main>
+        <footer className="bg-white border-t border-slate-200 p-12 pb-32">
+          <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div className="space-y-4">
+              <Link to="/" className="flex items-center gap-2.5 group">
+                <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200 group-hover:scale-105 transition-transform"><Shield className="w-5 h-5 text-white" /></div>
+                <h1 className="text-lg font-extrabold text-slate-900 tracking-tight leading-none">Naya Sahai</h1>
+              </Link>
+              <p className="text-xs font-bold text-slate-500 leading-relaxed">Professional recovery navigation for Indian citizens. Powered by BNS & IT Act compliant logic.</p>
+            </div>
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legal & Policies</h4>
+              <ul className="space-y-2">
+                <li><Link to="/privacy" className="text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors">Privacy Policy</Link></li>
+                <li><Link to="/terms" className="text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors">Terms & Conditions</Link></li>
+                <li><Link to="/refund" className="text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors">Refund & Cancellation</Link></li>
+                <li><Link to="/about" className="text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors">Trust & Policies</Link></li>
+              </ul>
+            </div>
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact Support</h4>
+              <p className="text-xs font-bold text-slate-600">Email: support@nayasahai.com</p>
+              <p className="text-xs font-bold text-slate-600">WhatsApp: +91 8217617245</p>
+              <p className="text-[10px] font-bold text-slate-400 mt-4">Bangalore, Karnataka - 560102</p>
+            </div>
+          </div>
+        </footer>
         <nav className="fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-around py-5 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
           <NavLink to="/" icon={<Navigation />} label="Explore" />
           <NavLink to="/plans/result" icon={<CheckSquare />} label="My Recovery" />
           <NavLink to="/about" icon={<Shield />} label="Trust" />
         </nav>
+        <WhatsAppSupport />
       </div>
     </BrowserRouter>
   );
 };
 
 const TrustInfo = () => (
-  <div className="p-12 text-center max-w-3xl mx-auto animate-in pb-40">
-    <div className="bg-indigo-600 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto text-white shadow-xl shadow-indigo-100 mb-10 border-2 border-slate-200"><Shield className="w-10 h-10" /></div>
-    <h2 className="text-5xl font-black text-slate-900 mb-8 tracking-tighter">Verified Recovery OS</h2>
-    <p className="text-slate-600 font-bold text-xl mb-12 leading-relaxed max-w-xl mx-auto">All legal formats comply with the latest BNS and IT Act standards. Your data is processed locally and never stored.</p>
-    <div className="grid grid-cols-2 gap-6 text-left mb-16">
+  <div className="p-6 max-w-4xl mx-auto animate-in pb-40 space-y-16">
+    <div className="text-center space-y-8 pt-12">
+      <div className="bg-indigo-600 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto text-white shadow-xl shadow-indigo-100 mb-10 border-2 border-slate-200"><Shield className="w-10 h-10" /></div>
+      <h2 className="text-5xl font-black text-slate-900 tracking-tighter">Verified Recovery OS</h2>
+      <p className="text-slate-600 font-bold text-xl leading-relaxed max-w-xl mx-auto">All legal formats comply with the latest BNS and IT Act standards. Your data is processed locally and never stored.</p>
+    </div>
+
+    <Disclaimer />
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
       <div className="p-8 bg-white border-2 border-slate-100 rounded-3xl shadow-lg shadow-gray-400/20">
         <Lock className="text-indigo-600 mb-4" />
         <h4 className="font-black text-slate-900">Privacy First</h4>
@@ -889,9 +1002,32 @@ const TrustInfo = () => (
         <p className="text-xs font-bold text-slate-600 mt-1">Directly integrated with official Cyber Cell submission logic.</p>
       </div>
     </div>
-    <Link to="/" className="inline-flex items-center gap-3 text-indigo-600 font-black text-lg group transition-all">
-      <ArrowLeft className="group-hover:-translate-x-2 transition-transform" /> Back to Navigator
-    </Link>
+
+    <section className="space-y-8">
+      <SectionTitle subtitle="Legal documentation & business transparency">Trust & Policies</SectionTitle>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Link to="/privacy" className="p-6 bg-white border-2 border-slate-100 rounded-3xl hover:border-indigo-600 transition-all group">
+          <Shield className="text-indigo-600 mb-2 group-hover:scale-110 transition-transform" size={20} />
+          <p className="text-sm font-black text-slate-900">Privacy Policy</p>
+        </Link>
+        <Link to="/terms" className="p-6 bg-white border-2 border-slate-100 rounded-3xl hover:border-indigo-600 transition-all group">
+          <FileText className="text-indigo-600 mb-2 group-hover:scale-110 transition-transform" size={20} />
+          <p className="text-sm font-black text-slate-900">Terms & Conditions</p>
+        </Link>
+        <Link to="/refund" className="p-6 bg-white border-2 border-slate-100 rounded-3xl hover:border-indigo-600 transition-all group">
+          <RefreshCcw className="text-indigo-600 mb-2 group-hover:scale-110 transition-transform" size={20} />
+          <p className="text-sm font-black text-slate-900">Refund Policy</p>
+        </Link>
+      </div>
+    </section>
+
+    <ContactInfo />
+
+    <div className="text-center">
+      <Link to="/" className="inline-flex items-center gap-3 text-indigo-600 font-black text-lg group transition-all">
+        <ArrowLeft className="group-hover:-translate-x-2 transition-transform" /> Back to Navigator
+      </Link>
+    </div>
   </div>
 );
 
