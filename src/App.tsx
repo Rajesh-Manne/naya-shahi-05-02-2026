@@ -349,7 +349,7 @@ const PlanResult = () => {
     setGenerating(true);
     try {
       const ai = new GoogleGenAI({ 
-  apiKey: import.meta.env.VITE_GOOGLE_API_KEY 
+  apiKey: process.env.GEMINI_API_KEY!
 });
 
       const totalLoss = incidentData.transactions.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
@@ -454,7 +454,11 @@ const PlanResult = () => {
 
   if (activeTool === 'complaint') {
     const totalLoss = incidentData.transactions.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
-    const draftText = `To,\nThe Station House Officer,\nCyber Crime Cell,\n${incidentData.location}\n\nSubject: Official Complaint regarding ${incident.title} of ₹${totalLoss}.\n\nRespected Sir/Madam,\nI am reporting a fraud that occurred on ${incidentData.date}.\n\nIncident Narrative:\n${incidentData.description}\n\nTransaction Details:\n${incidentData.transactions.map((t: any) => `- UTR: ${t.utr}, Amount: ₹${t.amount}, Date: ${t.date}`).join('\n')}\n\nPlease register this complaint and initiate recovery protocols.\n\nSigned,\n[Your Name]`;
+    const evidenceList = incidentData.evidence && incidentData.evidence.length > 0 
+      ? `\n\nEvidence Attached:\n${incidentData.evidence.map((e: string) => `- ${e}`).join('\n')}`
+      : "";
+    
+    const draftText = `To,\nThe Station House Officer,\nCyber Crime Cell,\n${incidentData.location}\n\nSubject: Official Complaint regarding ${incident.title} of ₹${totalLoss}.\n\nRespected Sir/Madam,\nI am reporting a fraud that occurred on ${incidentData.date}.\n\nIncident Narrative:\n${incidentData.description}\n\nTransaction Details:\n${incidentData.transactions.map((t: any) => `- UTR: ${t.utr}, Amount: ₹${t.amount}, Date: ${t.date}`).join('\n')}${evidenceList}\n\nPlease register this complaint and initiate recovery protocols.\n\nSigned,\n[Your Name]`;
     return (
       <div className="p-6 max-w-2xl mx-auto space-y-8 animate-in pb-40">
         <button onClick={() => setActiveTool(null)} className="flex items-center gap-2 font-black text-indigo-600 hover:translate-x-[-4px] transition-transform"><ArrowLeft /> Back to Dashboard</button>
@@ -749,17 +753,90 @@ const PlanPayment = () => {
   );
 };
 
+const EVIDENCE_OPTIONS = [
+  "Bank statement",
+  "Transaction / UTR screenshot",
+  "SMS alerts",
+  "Call logs",
+  "WhatsApp / Telegram chats",
+  "Email communication",
+  "Fraud website/app link",
+  "Screen recording",
+  "ID proof",
+  "Loan app screenshots",
+  "Threat / harassment messages",
+  "Investment advertisement",
+  "Remote app screenshot (AnyDesk etc)",
+  "Courier / order details",
+  "Audio / video proof"
+];
+
 const PlanDetails = () => {
   const navigate = useNavigate();
-  const [incidentData, setIncidentData] = useState<any>(getFromLocal(STORAGE_KEYS.INCIDENT_DATA) || { date: '', time: '', description: '', location: '', transactions: [] });
+  const [incidentData, setIncidentData] = useState<any>(getFromLocal(STORAGE_KEYS.INCIDENT_DATA) || { date: '', time: '', description: '', location: '', transactions: [], evidence: [] });
   const [step, setStep] = useState(0);
   const addTx = () => setIncidentData({ ...incidentData, transactions: [...incidentData.transactions, { id: Date.now().toString(), utr: '', amount: '', date: '' }] });
   const updateTx = (id: string, field: string, val: string) => setIncidentData({ ...incidentData, transactions: incidentData.transactions.map((t: any) => t.id === id ? { ...t, [field]: val } : t) });
+  
+  const toggleEvidence = (item: string) => {
+    const currentEvidence = incidentData.evidence || [];
+    const newEvidence = currentEvidence.includes(item)
+      ? currentEvidence.filter((i: string) => i !== item)
+      : [...currentEvidence, item];
+    setIncidentData({ ...incidentData, evidence: newEvidence });
+  };
+
   const inputClasses = "w-full p-4 bg-white border-2 border-slate-900 rounded-xl font-bold outline-none focus:ring-2 focus:ring-gray-400 focus:border-black transition-all text-slate-900";
   const labelClasses = "text-base font-bold text-slate-900 block mb-2";
   const steps = [
     { title: 'Incident Record', content: <div className="bg-white border-2 border-slate-200 rounded-2xl p-8 shadow-lg shadow-gray-400/40 space-y-8"><div className="space-y-2"><label className={labelClasses}>Location</label><input type="text" value={incidentData.location} onChange={e => setIncidentData({...incidentData, location: e.target.value})} className={inputClasses} placeholder="City, State" /></div><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><label className={labelClasses}>Date</label><input type="date" value={incidentData.date} onChange={e => setIncidentData({...incidentData, date: e.target.value})} className={inputClasses} /></div><div className="space-y-2"><label className={labelClasses}>Time</label><input type="time" value={incidentData.time} onChange={e => setIncidentData({...incidentData, time: e.target.value})} className={inputClasses} /></div></div><div className="space-y-2"><label className={labelClasses}>Description</label><textarea rows={6} value={incidentData.description} onChange={e => setIncidentData({...incidentData, description: e.target.value})} className={`${inputClasses} resize-none`} /></div></div> },
-    { title: 'Loss Details', content: <div className="space-y-6">{incidentData.transactions.map((tx: any) => <div key={tx.id} className="bg-white p-8 border-2 border-slate-200 rounded-2xl relative space-y-6"><button onClick={() => setIncidentData({...incidentData, transactions: incidentData.transactions.filter((t: any) => t.id !== tx.id)})} className="absolute top-4 right-4 text-slate-400 hover:text-red-600 p-2"><Trash2 className="w-6 h-6" /></button><input value={tx.utr} onChange={e => updateTx(tx.id, 'utr', e.target.value)} placeholder="UTR/Ref" className={inputClasses} /><div className="grid grid-cols-2 gap-4"><input value={tx.amount} onChange={e => updateTx(tx.id, 'amount', e.target.value)} placeholder="Amount (₹)" className={inputClasses} /><input type="date" value={tx.date} onChange={e => updateTx(tx.id, 'date', e.target.value)} className={inputClasses} /></div></div>)}<Button variant="outline" onClick={addTx} className="border-dashed border-2 py-8 bg-white shadow-none"><Plus /> Add Record</Button></div> }
+    { 
+      title: 'Loss Details', 
+      content: (
+        <div className="space-y-10">
+          <div className="space-y-6">
+            <SectionTitle subtitle="List all fraudulent transactions">Transaction Records</SectionTitle>
+            {incidentData.transactions.map((tx: any) => (
+              <div key={tx.id} className="bg-white p-8 border-2 border-slate-200 rounded-2xl relative space-y-6">
+                <button onClick={() => setIncidentData({...incidentData, transactions: incidentData.transactions.filter((t: any) => t.id !== tx.id)})} className="absolute top-4 right-4 text-slate-400 hover:text-red-600 p-2"><Trash2 className="w-6 h-6" /></button>
+                <input value={tx.utr} onChange={e => updateTx(tx.id, 'utr', e.target.value)} placeholder="UTR/Ref" className={inputClasses} />
+                <div className="grid grid-cols-2 gap-4">
+                  <input value={tx.amount} onChange={e => updateTx(tx.id, 'amount', e.target.value)} placeholder="Amount (₹)" className={inputClasses} />
+                  <input type="date" value={tx.date} onChange={e => updateTx(tx.id, 'date', e.target.value)} className={inputClasses} />
+                </div>
+              </div>
+            ))}
+            <Button variant="outline" onClick={addTx} className="border-dashed border-2 py-8 bg-white shadow-none"><Plus /> Add Record</Button>
+          </div>
+
+          <div className="space-y-6">
+            <SectionTitle subtitle="Select all items you can provide">Available Evidence</SectionTitle>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {EVIDENCE_OPTIONS.map((option) => (
+                <label 
+                  key={option} 
+                  className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                    incidentData.evidence?.includes(option) 
+                      ? 'bg-indigo-50 border-indigo-600 shadow-sm' 
+                      : 'bg-white border-slate-100 hover:border-slate-300'
+                  }`}
+                >
+                  <input 
+                    type="checkbox" 
+                    className="w-5 h-5 accent-indigo-600 rounded" 
+                    checked={incidentData.evidence?.includes(option)}
+                    onChange={() => toggleEvidence(option)}
+                  />
+                  <span className={`text-sm font-bold ${incidentData.evidence?.includes(option) ? 'text-indigo-900' : 'text-slate-600'}`}>
+                    {option}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )
+    }
   ];
   const handleComplete = () => { saveToLocal(STORAGE_KEYS.INCIDENT_DATA, incidentData); navigate('/plans/result'); };
   return (
