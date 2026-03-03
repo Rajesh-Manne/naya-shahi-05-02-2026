@@ -51,7 +51,9 @@ import { CaseTracker } from './components/CaseTracker';
 import { EvidenceManager } from './components/EvidenceManager';
 import { WhatsAppSupport } from './components/WhatsAppSupport';
 import { PrivacyPolicy, TermsAndConditions, RefundPolicy, ContactInfo } from './components/PrivacyPolicy';
-
+import { GlobalLogin } from './components/GlobalLogin';
+import { supabase } from './lib/supabase';
+import { ExpertBooking } from './components/ExpertBooking';
 // --- Types & Constants ---
 
 enum IncidentCategory {
@@ -235,7 +237,8 @@ const STORAGE_KEYS = {
   PLAN: 'ns_plan',
   CASES: 'ns_cases',
   PAID: 'ns_is_paid',
-  GENERATED_EVIDENCE: 'ns_generated_evidence'
+  GENERATED_EVIDENCE: 'ns_generated_evidence',
+  BOOKING: 'ns_booking'
 };
 
 const saveToLocal = (key: string, data: any) => localStorage.setItem(key, JSON.stringify(data));
@@ -308,6 +311,7 @@ const RecoveryRoadmap = ({ incident }: { incident: IncidentPath }) => {
 
 const PlanResult = () => {
   const navigate = useNavigate();
+  const [booking, setBooking] = useState<any>(getFromLocal(STORAGE_KEYS.BOOKING));
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [evidenceDoc, setEvidenceDoc] = useState<string | null>(getFromLocal(STORAGE_KEYS.GENERATED_EVIDENCE));
@@ -577,31 +581,28 @@ const PlanResult = () => {
   }
 
   if (activeTool === 'lawyer') {
+        const totalLoss = incidentData.transactions.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
+    const evidenceList = incidentData.evidence && incidentData.evidence.length > 0 
+      ? `\n\nEvidence Attached:\n${incidentData.evidence.map((e: string) => `- ${e}`).join('\n')}`
+      : "";
+        const complaintText = `To,\nThe Station House Officer,\nCyber Crime Cell,\n${incidentData.location}\n\nSubject: Official Complaint regarding ${incident.title} of ₹${totalLoss}.\n\nRespected Sir/Madam,\nI am reporting a fraud that occurred on ${incidentData.date}.\n\nIncident Narrative:\n${incidentData.description}\n\nTransaction Details:\n${incidentData.transactions.map((t: any) => `- UTR: ${t.utr}, Amount: ₹${t.amount}, Date: ${t.date}`).join('\n')}${evidenceList}\n\nPlease register this complaint and initiate recovery protocols.\n\nSigned,\n[Your Name]`;
+
     return (
-      <div className="p-6 max-w-2xl mx-auto space-y-10 animate-in pb-40">
-        <button onClick={() => setActiveTool(null)} className="flex items-center gap-2 font-black text-indigo-600"><ArrowLeft /> Back</button>
-        <SectionTitle subtitle="Professional Legal Review">Schedule Consultation</SectionTitle>
-        <div className="bg-white border-2 border-slate-200 rounded-[3rem] p-10 shadow-lg shadow-gray-400/40 space-y-10">
-           <div className="flex items-center gap-6">
-             <div className="w-16 h-16 bg-violet-50 rounded-full flex items-center justify-center text-violet-600 shadow-inner border-2 border-slate-100"><Gavel className="w-8 h-8" /></div>
-             <div>
-               <h4 className="text-2xl font-black text-slate-900">Adv. R. Varma</h4>
-               <p className="text-xs font-black text-violet-600 uppercase tracking-widest">Supreme Court Cyber Specialist</p>
-             </div>
-           </div>
-           <div className="space-y-4">
-             <h5 className={labelClasses}>Available Time Slots</h5>
-             <div className="grid grid-cols-2 gap-4">
-               {['Today 6:00 PM', 'Today 8:00 PM', 'Tomorrow 11:00 AM'].map(slot => (
-                 <button key={slot} className="p-5 rounded-2xl border-2 border-slate-200 bg-white text-xs font-bold hover:bg-violet-600 hover:text-white transition-all shadow-md shadow-black/5 active:scale-95">{slot}</button>
-               ))}
-             </div>
-           </div>
-           <Button className="bg-violet-600 hover:bg-violet-700 py-6 border-2 border-slate-200 shadow-none" onClick={() => alert('Consultation Request Sent. Verification link emailed.')}>Confirm Booking</Button>
-        </div>
-      </div>
+    
+       <ExpertBooking 
+          onBack={() => setActiveTool(null)}
+          onComplete={(newBooking) => {
+            setBooking(newBooking);
+            saveToLocal(STORAGE_KEYS.BOOKING, newBooking);
+            setActiveTool(null);
+          }}
+          existingComplaint={complaintText}
+          incidentData={incidentData}
+        />
+      
     );
   }
+  
 
   return (
     <div className="p-6 max-w-5xl mx-auto pb-40 animate-in">
@@ -765,7 +766,7 @@ const PlanPayment = () => {
   const plan = getFromLocal(STORAGE_KEYS.PLAN);
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  useEffect(() => { if (!plan) navigate('/'); }, [plan, navigate]);
+
   if (!plan) return null;
   return (
     <div className="p-6 max-w-2xl mx-auto pb-40 animate-in space-y-10">
@@ -933,14 +934,39 @@ const App: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/incident/:id" element={<IncidentDetails />} />
             <Route path="/plans" element={<PlanSelect />} />
-            <Route path="/plans/payment" element={<PlanPayment />} />
+        <Route
+  path="/plans/payment"
+  element={
+    <AuthGate>
+      <PlanPayment />
+    </AuthGate>
+  }
+/>
             <Route path="/plans/details" element={<PlanDetails />} />
-            <Route path="/plans/result" element={<PlanResult />} />
+           <Route
+  path="/plans/result"
+  element={
+    <AuthGate>
+      <PlanResult />
+    </AuthGate>
+  }
+/>
             <Route path="/about" element={<TrustInfo />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/refund" element={<RefundPolicy />} />
             <Route path="*" element={<Home />} />
+            <Route
+  path="/expert-booking"
+  element={
+    <AuthGate>
+      <ExpertBooking />
+    </AuthGate>
+  }
+/>
+
+            {/* ⭐ NEW GLOBAL LOGIN ROUTE */}
+            <Route path="/login" element={<GlobalLogin />} />
           </Routes>
         </main>
         <footer className="bg-white border-t border-slate-200 p-12 pb-32">
